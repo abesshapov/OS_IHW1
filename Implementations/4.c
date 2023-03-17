@@ -42,9 +42,9 @@ int main(int argc, char *argv[]) {
         printf("Input file is non-existnet.");
         return 0;
     }
-    char strings[BUFFER_SIZE], intersection[BUFFER_SIZE];
+    char strings[BUFFER_SIZE], intersection[BUFFER_SIZE], result[BUFFER_SIZE];
     int first_pipe[2], second_pipe[2];
-    pid_t first_pid, second_pid;
+    pid_t first_pid, second_pid, third_pid;
     if (pipe(first_pipe) == -1 || pipe(second_pipe) == -1) {
         printf("Error occurred while creating pipes.");
         return 0;
@@ -79,14 +79,30 @@ int main(int argc, char *argv[]) {
         close(second_pipe[1]);
         exit(0);
     }
+    third_pid = fork();
+    if (third_pid == -1) {
+        printf("Error occurred while creating processes.");
+        return 0;
+    }
+    if (third_pid == 0) {
+        close(first_pipe[0]);
+        close(first_pipe[1]);
+        close(second_pipe[1]);
+        size_t output_bytes_read = read(second_pipe[0], result, BUFFER_SIZE);
+        close(second_pipe[0]);
+        write(write_fd, result, output_bytes_read);
+        close(read_fd);
+        close(write_fd);
+        exit(0);
+    }
     close(first_pipe[0]);
     close(first_pipe[1]);
     close(second_pipe[1]);
-    char output_buffer[BUFFER_SIZE];
-    size_t output_bytes_read = read(second_pipe[0], output_buffer, BUFFER_SIZE);
     close(second_pipe[0]);
-    write(write_fd, output_buffer, output_bytes_read);
     close(read_fd);
     close(write_fd);
+    waitpid(first_pid, NULL, 0);
+    waitpid(second_pid, NULL, 0);
+    waitpid(third_pid, NULL, 0);
     return 0;
 }

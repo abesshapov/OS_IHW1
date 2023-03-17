@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/wait.h>
 
 const int BUFFER_SIZE = 5000;
 
@@ -49,8 +50,8 @@ int main(int argc, char *argv[]) {
         printf("Error occurred while creating pipes.");
         return 0;
     }
-    char strings[BUFFER_SIZE], intersection[BUFFER_SIZE];
-    pid_t first_pid, second_pid;
+    char strings[BUFFER_SIZE], intersection[BUFFER_SIZE], result[BUFFER_SIZE];
+    pid_t first_pid, second_pid, third_pid;
     first_pid = fork();
     if (first_pid == -1) {
         printf("Error occurred while creating processes.");
@@ -79,13 +80,27 @@ int main(int argc, char *argv[]) {
         close(second_pipe_fd);
         exit(0);
     }
-    int second_pipe_fd = open(second_pipe, O_RDONLY);
-    char output_buffer[BUFFER_SIZE];
-    size_t output_bytes_read = read(second_pipe_fd, output_buffer, BUFFER_SIZE);
-    close(second_pipe_fd);
-    write(write_fd, output_buffer, output_bytes_read);
+    third_pid = fork();
+    if (third_pid == -1) {
+        printf("Error occurred while creating processes.");
+        return 0;
+    }
+    if (third_pid == 0) {
+        int second_pipe_fd = open(second_pipe, O_RDONLY); 
+        size_t output_bytes_read = read(second_pipe_fd, result, BUFFER_SIZE);
+        close(second_pipe_fd);
+        write(write_fd, result, output_bytes_read);
+        close(read_fd);
+        close(write_fd);
+        unlink(first_pipe);
+        unlink(second_pipe);
+        exit(0);
+    }
     close(read_fd);
     close(write_fd);
+    waitpid(first_pid, NULL, 0);
+    waitpid(second_pid, NULL, 0);
+    waitpid(third_pid, NULL, 0);
     unlink(first_pipe);
     unlink(second_pipe);
     return 0;
